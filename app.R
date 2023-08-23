@@ -22,8 +22,8 @@ yone= array(0,1)
 Dmove= array(0,1)
 
 # if updating this list, remember that it has to be done with names/dimensioning and in two places down at bottom
-nm <- c("body length","body length CV ","swim speed","swim speed CV" ,"hours active","hours CV" ,"turns", "home base",
-        "cell length (km)", "N fish","Diffusivity (D; km^2/day)" ,"Mixing rate (yr-1)", "Ecospace dispersal (km/yr)", "time")
+nm <- c('name',"body length","body length CV ","swim speed","swim speed CV" ,"hours active","hours CV" ,"turns", "home base",
+        "cell length (km)",'model step' ,"N fish","Diffusivity (D; km^2/day)" ,"Mixing rate (yr-1)", "Ecospace dispersal (km/yr)", "time")
 res <- matrix(ncol = length(nm), nrow = 0)
 colnames(res) <- nm
 
@@ -37,6 +37,7 @@ ui <- fluidPage(
   fluidRow(
     column(4,
            wellPanel(
+             textInput('name','Species name',""),
              sliderInput("bl", "Body length (cm)", value = 60, min = 5, max = 200),
              numericInput("bls", "Swim speed (bl/sec)", value = 1, min = 0.001, max = 5),
              sliderInput("hours", "Hours active / day:  ", value = 18, min = 1, max = 24),   
@@ -46,6 +47,7 @@ ui <- fluidPage(
              numericInput("nfish", "Number of fish", value = 1000, min = 1, max = 10000),
              actionButton("batch", "Generate 20 runs"),
              downloadButton('downFile',"Save session output"),
+             #downloadButton("downloadPlot", "Download plots"),
              
              bsPopover("bls", 'Swimming speed?', bls_txt, placement = "bottom", trigger = "hover",options = NULL),
              bsPopover("turns", 'Number of turns?', turn_txt, placement = "bottom", trigger = "hover",options = NULL),
@@ -180,7 +182,7 @@ server <- function(input, output) {
     output$Pexit <-    renderText({paste("Exit probability per cell face:  ",format(Pexit,digits=4),"per day")})
     if(Pexit>0.05) { output$Pexit_warning <- renderText({exit_txt})
     } else output$Pexit_warning <- renderText({""})
-    output$diffus <-   renderText({paste("Diffusivity:  ",format(Pexit*input$celllength^2,digits=1),"km^2/day")})
+    output$diffus <-   renderText({paste("Diffusivity:  ",format(Pexit*input$celllength^2*input$steps,digits=1),"km^2/day")})
     output$annmix <-   renderText({paste("Mix rate for spatial models:  ",format(annmix,digits=3),"per year")})
     #output$swimspeed<- renderText({paste("Movement speed:  ",format(swimspeed*365,digits=1),"km/yr")})
     #output$mixecospace=renderText({paste("Ecospace mixing rate from annual speed:  ",format(mixecospace,digits=2))})
@@ -193,9 +195,9 @@ server <- function(input, output) {
     #c("time", "body length", "swim speed", "hours active", "turns","turn sd","home base","cell length","# fish","Ecospace dispersal")
     end <- Sys.time()
     output$time <-  renderText({paste("Run time:",format(end-beginning,digits=2))})
-    # if updating this list, remember that it has to be done with names/diminsioning and in two places down at bottom
-    dat = c(input$bl,input$bl.cv,input$bls,input$bls.cv,input$hours,input$hours.cv,input$turns,input$wthome,
-            input$celllength,input$nfish,Pexit*input$celllength^2,annmix,annmix*input$celllength*pi,end-beginning)
+    # if updating this list, remember that it has to be done with names/dimensioning and in two places down at bottom
+    dat = c(input$name,input$bl,input$bl.cv,input$bls,input$bls.cv,input$hours,input$hours.cv,input$turns,input$wthome,
+            input$celllength,input$steps,input$nfish,Pexit*input$celllength^2*input$steps,annmix,annmix*input$celllength*pi,end-beginning)
     
     res <<- rbind(res,dat)
     print(end-beginning)    
@@ -212,7 +214,7 @@ server <- function(input, output) {
       
       output$distturn <- renderText({paste("Distance between turns:  ",format(distturn,digits=1),"m")})
       output$Pexit <-    renderText({paste("Exit prob. per cell face:  ",format(Pexit,digits=4),"per day")})
-      output$diffus <-   renderText({paste("Diffusivity (D):  ",format(Pexit*input$celllength^2,digits=1),"km^2/day")})
+      output$diffus <-   renderText({paste("Diffusivity (D):  ",format(Pexit*input$celllength^2*input$steps,digits=1),"km^2/day")})
       output$annmix <-   renderText({paste("Mix rate for spatial models:  ",format(annmix,digits=3),"per year")})
       #output$swimspeed<- renderText({paste("Movement speed:  ",format(swimspeed*365,digits=1),"km/yr")})
       #output$mixecospace=renderText({paste("Ecospace mixing rate from annual speed:  ",format(mixecospace,digits=2))})
@@ -224,9 +226,9 @@ server <- function(input, output) {
       end <- Sys.time()
       output$time <-  renderText({paste("Run time:",format(end-beginning,digits=2))})
       # store the settings and results for this run
-      # if updating this list, remember that it has to be done with names/diminsioning and in two places down at bottom
-      dat = c(input$bl,input$bl.cv,input$bls,input$bls.cv,input$hours,input$hours.cv,input$turns,input$wthome,
-              input$celllength,input$nfish,Pexit*input$celllength^2,annmix,annmix*input$celllength*pi,end-beginning)
+      # if updating this list, remember that it has to be done with names/dimensioning and in two places down at bottom
+      dat = c(input$name,input$bl,input$bl.cv,input$bls,input$bls.cv,input$hours,input$hours.cv,input$turns,input$wthome,
+              input$celllength,input$steps,input$nfish,Pexit*input$celllength^2*input$steps,annmix,annmix*input$celllength*pi,end-beginning)
       res <<- rbind(res,dat)
       print(end-beginning)
     }
@@ -258,6 +260,15 @@ server <- function(input, output) {
     },
     content = function(file) {
       write.csv(res, file, row.names = FALSE)
+    }
+  )
+  
+  output$downloadPlot <- downloadHandler(
+    filename = function() { "output.pdf" },
+    content = function(file) {
+      pdf(file, paper = "default")
+      plot(my_plot())
+      dev.off()
     }
   )
 }
