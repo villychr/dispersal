@@ -9,8 +9,7 @@ library(shinyBS)
 
 # declare global variables here (if really needed)
 bls_txt = "Rule of thumb: fish swim with 1 bl/sec when searching, up to 2 bl/sec when in pursuit or actively searching, and 0.5 bl/sec while in feeding mode, so 1 bl/sec is a reasonable choice"
-exit_txt = "Note that when exit probability > 0.05/day, we recommend you scale the swimspeed, e.g., to hourly 
-            rates (/24). The output (e.g., dispersal) then have to multiplied with the same scaling factor (24). "
+exit_txt = "Note that when exit probability > 0.05/day, we recommend you increase the number of model time steps (per day)"
 turn_txt = "Fish tend to change direction after a prey hunt/capture, so how many times an hour does this species do that? Planktivores, often. Piscivores, less often"
 home_txt = "Proportion of movement that is directed back toward the individual’s starting point or home range center"
 nfish_txt = "More fish (or think of each as a school) = slower calculation. It may not change results noticeably, but try it ... " #Schools move together, so for those it's number of schools rather than fish"
@@ -43,6 +42,7 @@ ui <- fluidPage(
              sliderInput("hours", "Hours active / day:  ", value = 18, min = 1, max = 24),   
              sliderInput("turns", "# turns / active hour", value = 20, min = 1, max = 120),
              numericInput("celllength", "Cell length (km)", value = 110, min = 0.001, max = 1000),
+             numericInput("steps", "Model time steps (per day)", value = 1, min = 1, max = 100),
              numericInput("nfish", "Number of fish", value = 1000, min = 1, max = 10000),
              actionButton("batch", "Generate 20 runs"),
              downloadButton('downFile',"Save session output"),
@@ -102,11 +102,12 @@ server <- function(input, output) {
     nfish = input$nfish
     hours = input$hours
     nday = input$turns * hours
+    steps = input$steps
     bl.cv = input$bl.cv
     bls.cv= input$bls.cv
     hours.cv = input$hours.cv
     
-    swimspeed = input$bl * input$bls * 60*60 * hours /100/1000  # swimspeed to set below in km/day
+    swimspeed = input$bl * input$bls * 60*60 * hours /100/1000 /steps  # swimspeed to set below in km/day
     dday = swimspeed / celllength         # distance moved per day in cell lengths
     Dstep1 = dday / nday                  # distance moved per movement step (cell lengths)
     ex=array(0,nfish)
@@ -156,13 +157,13 @@ server <- function(input, output) {
       Dmove[ifish] <<- sqrt((X - Xs) ^ 2 + (Y - Ys) ^ 2)
     }
     Pexit=sum(ex)
-    meanD=sum(Dmove)
-    distturn=swimspeed*1000/nday
+    meanD=sum(Dmove) * steps
+    distturn=swimspeed*1000/nday * steps
     
     Pexit = Pexit / nfish / 4    #probability of exiting the cell in one day
     meanD = celllength * meanD / input$nfish  #mean distance moved in one day km
-    annmix=365*Pexit
-    mixecospace=swimspeed*365/(pi*celllength)
+    annmix=365*Pexit * steps
+    mixecospace=swimspeed*365/(pi*celllength) * steps
  
     data.list = list("a" = distturn, "b" = Pexit, "c" = annmix)
     return(data.list)
