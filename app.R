@@ -31,7 +31,7 @@ colnames(res) <- nm
 ui <- fluidPage(
   
   # Application title
-  titlePanel("Ecospace dispersal estimator"),
+  titlePanel("Ecospace dispersal IBM estimator"),
   
   
   fluidRow(
@@ -47,7 +47,7 @@ ui <- fluidPage(
              numericInput("nfish", "Number of fish", value = 1000, min = 1, max = 10000),
              actionButton("batch", "Generate 20 runs"),
              downloadButton('downFile',"Save session output"),
-             #downloadButton("downloadPlot", "Download plots"),
+             # downloadButton("downloadPlot", "Download plots"),
              
              bsPopover("bls", 'Swimming speed?', bls_txt, placement = "bottom", trigger = "hover",options = NULL),
              bsPopover("turns", 'Number of turns?', turn_txt, placement = "bottom", trigger = "hover",options = NULL),
@@ -263,14 +263,14 @@ server <- function(input, output) {
     }
   )
   
-  output$downloadPlot <- downloadHandler(
-    filename = function() { "output.pdf" },
-    content = function(file) {
-      pdf(file, paper = "default")
-      plot(my_plot())
-      dev.off()
-    }
-  )
+  # output$downloadPlot <- downloadHandler(
+  #   filename = function() { "output.pdf" },
+  #   content = function(file) {
+  #     pdf(file, paper = "default")
+  #     output$histPlot()
+  #     dev.off()
+  #   }
+  # )
 }
 
 
