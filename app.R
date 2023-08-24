@@ -1,6 +1,6 @@
 # Original R Code made by Carl Walters, Aug 2023
 # modified to Shiny app by Villy Christensen, Aug-Sep 2023
-library(rsconnect)
+#library(rsconnect)
 #rsconnect::deployApp('path/to/your/app')
 
 library(shiny)
