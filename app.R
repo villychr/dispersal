@@ -9,7 +9,7 @@ library(shinyBS)
 
 # declare global variables here (if really needed)
 bls_txt = "Rule of thumb: fish swim with 1 bl/sec when searching, up to 2 bl/sec when in pursuit or actively searching, and 0.5 bl/sec while in feeding mode, so 1 bl/sec is a reasonable choice"
-exit_txt = "Note that when exit probability > 0.05/day, we recommend you increase the number of model time steps (per day)"
+exit_txt = "Note that when exit probability > 0.05/day, we recommend you decrease the model simulation time)"
 turn_txt = "Fish tend to change direction after a prey hunt/capture, so how many times an hour does this species do that? Planktivores, often. Piscivores, less often"
 home_txt = "Proportion of movement that is directed back toward the individual’s starting point or home range center"
 nfish_txt = "More fish (or think of each as a school) = slower calculation. It may not change results noticeably, but try it ... " #Schools move together, so for those it's number of schools rather than fish"
@@ -43,7 +43,7 @@ ui <- fluidPage(
              sliderInput("hours", "Hours active / day:  ", value = 18, min = 1, max = 24),   
              sliderInput("turns", "# turns / active hour", value = 20, min = 1, max = 120),
              numericInput("celllength", "Cell length (km)", value = 110, min = 0.001, max = 1000),
-             numericInput("steps", "Model time steps (per day)", value = 1, min = 1, max = 100),
+             numericInput("steps", "Model simulation time (prop. of day)", value = 1, min = 0.001, max = 100),
              numericInput("nfish", "Number of fish", value = 1000, min = 1, max = 10000),
              actionButton("batch", "Generate 20 runs"),
              downloadButton('downFile',"Save session output"),
@@ -109,7 +109,7 @@ server <- function(input, output) {
     bls.cv= input$bls.cv
     hours.cv = input$hours.cv
     
-    swimspeed = input$bl * input$bls * 60*60 * hours /100/1000 /steps  # swimspeed to set below in km/day
+    swimspeed = input$bl * input$bls * 60*60 * hours /100/1000 * steps  # swimspeed to set below in km/day
     dday = swimspeed / celllength         # distance moved per day in cell lengths
     Dstep1 = dday / nday                  # distance moved per movement step (cell lengths)
     ex=array(0,nfish)
@@ -159,13 +159,13 @@ server <- function(input, output) {
       Dmove[ifish] <<- sqrt((X - Xs) ^ 2 + (Y - Ys) ^ 2)
     }
     Pexit=sum(ex)
-    meanD=sum(Dmove) * steps
-    distturn=swimspeed*1000/nday * steps
+    meanD=sum(Dmove) / steps
+    distturn=swimspeed*1000/nday / steps
     
     Pexit = Pexit / nfish / 4    #probability of exiting the cell in one day
     meanD = celllength * meanD / input$nfish  #mean distance moved in one day km
-    annmix=365*Pexit * steps
-    mixecospace=swimspeed*365/(pi*celllength) * steps
+    annmix=365*Pexit / steps
+    mixecospace=swimspeed*365/(pi*celllength) / steps
     
     data.list = list("a" = distturn, "b" = Pexit, "c" = annmix)
     return(data.list)
@@ -182,7 +182,7 @@ server <- function(input, output) {
     output$Pexit <-    renderText({paste("Exit probability per cell face:  ",format(Pexit,digits=4),"per day")})
     if(Pexit>0.05) { output$Pexit_warning <- renderText({exit_txt})
     } else output$Pexit_warning <- renderText({""})
-    output$diffus <-   renderText({paste("Diffusivity:  ",format(Pexit*input$celllength^2*input$steps,digits=1),"km^2/day")})
+    output$diffus <-   renderText({paste("Diffusivity:  ",format(Pexit*input$celllength^2/input$steps,digits=1),"km^2/day")})
     output$annmix <-   renderText({paste("Mix rate for spatial models:  ",format(annmix,digits=3),"per year")})
     #output$swimspeed<- renderText({paste("Movement speed:  ",format(swimspeed*365,digits=1),"km/yr")})
     #output$mixecospace=renderText({paste("Ecospace mixing rate from annual speed:  ",format(mixecospace,digits=2))})
@@ -197,7 +197,7 @@ server <- function(input, output) {
     output$time <-  renderText({paste("Run time:",format(end-beginning,digits=2))})
     # if updating this list, remember that it has to be done with names/dimensioning and in two places down at bottom
     dat = c(input$name,input$bl,input$bl.cv,input$bls,input$bls.cv,input$hours,input$hours.cv,input$turns,input$wthome,
-            input$celllength,input$steps,input$nfish,Pexit*input$celllength^2*input$steps,annmix,annmix*input$celllength*pi,end-beginning)
+            input$celllength,input$steps,input$nfish,Pexit*input$celllength^2/input$steps,annmix,annmix*input$celllength*pi,end-beginning)
     
     res <<- rbind(res,dat)
     print(end-beginning)    
@@ -214,7 +214,7 @@ server <- function(input, output) {
       
       output$distturn <- renderText({paste("Distance between turns:  ",format(distturn,digits=1),"m")})
       output$Pexit <-    renderText({paste("Exit prob. per cell face:  ",format(Pexit,digits=4),"per day")})
-      output$diffus <-   renderText({paste("Diffusivity (D):  ",format(Pexit*input$celllength^2*input$steps,digits=1),"km^2/day")})
+      output$diffus <-   renderText({paste("Diffusivity (D):  ",format(Pexit*input$celllength^2/input$steps,digits=1),"km^2/day")})
       output$annmix <-   renderText({paste("Mix rate for spatial models:  ",format(annmix,digits=3),"per year")})
       #output$swimspeed<- renderText({paste("Movement speed:  ",format(swimspeed*365,digits=1),"km/yr")})
       #output$mixecospace=renderText({paste("Ecospace mixing rate from annual speed:  ",format(mixecospace,digits=2))})
@@ -228,7 +228,7 @@ server <- function(input, output) {
       # store the settings and results for this run
       # if updating this list, remember that it has to be done with names/dimensioning and in two places down at bottom
       dat = c(input$name,input$bl,input$bl.cv,input$bls,input$bls.cv,input$hours,input$hours.cv,input$turns,input$wthome,
-              input$celllength,input$steps,input$nfish,Pexit*input$celllength^2*input$steps,annmix,annmix*input$celllength*pi,end-beginning)
+              input$celllength,input$steps,input$nfish,Pexit*input$celllength^2/input$steps,annmix,annmix*input$celllength*pi,end-beginning)
       res <<- rbind(res,dat)
       print(end-beginning)
     }
@@ -237,8 +237,8 @@ server <- function(input, output) {
   
   output$distPlot <- renderPlot({
     prepare_plot()
-    plot(Xend,Yend,xlab="Distance, km",ylab="Distance, km",cex=0.5,col="darkblue")
-    title("Distances moved over one day")
+    plot(Xend/input$steps,Yend/input$steps,xlab="Distance, km",ylab="Distance, km",cex=0.5,col="darkblue")
+    title("Distances moved per day")
   })
   
   output$trajPlot <- renderPlot({
@@ -250,7 +250,7 @@ server <- function(input, output) {
   output$histPlot <- renderPlot({
     prepare_plot()   # is reactive, so won't do anything
     points(0,0,pch=16,col="black")
-    hist(Dmove*input$celllength,main="Distances moved per day",xlab="Distance, km",ylab="Proportion of fish",freq=FALSE)
+    hist(Dmove*input$celllength/input$steps,main="Distances moved per day",xlab="Distance, km",ylab="Proportion of fish",freq=FALSE)
   })
   
   
